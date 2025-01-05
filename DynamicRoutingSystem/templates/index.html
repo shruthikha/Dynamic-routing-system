@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FedEx Dynamic Routing</title>
+</head>
+<body>
+    <h1>FedEx Dynamic Routing System</h1>
+    <form id="routeForm" action="/calculate" method="POST">
+        <label for="start">Start Location (Longitude,Latitude):</label>
+        <input type="text" id="start" name="start" required><br><br>
+        
+        <label for="end">End Location (Longitude,Latitude):</label>
+        <input type="text" id="end" name="end" required><br><br>
+        
+        <label for="vehicle_type">Vehicle Type:</label>
+        <select id="vehicle_type" name="vehicle_type" required>
+            <option value="car">Car</option>
+            <option value="van">Van</option>
+            <option value="truck">Truck</option>
+        </select><br><br>
+        
+        <button type="submit">Calculate Route</button>
+    </form>
+
+    <h2>Results</h2>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('routeForm').addEventListener('submit', function(event) {
+            event.preventDefault();  // Prevent form from reloading the page
+            
+            const formData = new FormData(this);
+            const url = this.action;
+            
+            fetch(url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('result').innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+                } else {
+                    document.getElementById('result').innerHTML = `
+                        <p><strong>Distance:</strong> ${data.distance_km} km</p>
+                        <p><strong>Duration:</strong> ${data.duration_min} minutes</p>
+                        <p><strong>Emissions:</strong> ${data.emissions_kg} kg CO2</p>
+                        <p><strong>Air Quality Index:</strong> ${data.air_quality_index}</p>
+                        <p><strong>Travel Decision:</strong> ${data.travel_decision}</p>
+                    `;
+                }
+            })
+            .catch(error => {
+                document.getElementById('result').innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            });
+        });
+    </script>
+</body>
+</html>
