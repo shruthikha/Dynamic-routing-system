@@ -7,10 +7,8 @@ from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
 
-# API Keys (Replace with actual keys where required)
-AQICN_API_KEY = "7e9e606a54ec17e027ecd3e03d142b5dc87e53d2"
 
-# Base URLs for APIs
+AQICN_API_KEY = "7e9e606a54ec17e027ecd3e03d142b5dc87e53d2"
 OSRM_BASE_URL = "http://router.project-osrm.org"
 AQICN_BASE_URL = "https://api.waqi.info"
 
@@ -40,20 +38,20 @@ def calculate():
     end = request.form['end']
     vehicle_type = request.form['vehicle_type']
     
-    # Step 1: Get route data from OSRM
+  
     route_url = f"{OSRM_BASE_URL}/route/v1/driving/{start};{end}?overview=full&steps=true"
     
     try:
         route_response = requests.get(route_url)
-        route_response.raise_for_status()  # Raise an error for bad HTTP responses (4xx or 5xx)
+        route_response.raise_for_status() 
         route_data = route_response.json()
         
         if 'routes' not in route_data:
             return jsonify({"error": "Unable to fetch route. Check inputs."})
         
         route = route_data['routes'][0]
-        distance_km = route['distance'] / 1000  # Convert meters to kilometers
-        duration_sec = route['duration']  # Seconds
+        distance_km = route['distance'] / 1000  
+        duration_sec = route['duration'] 
         try:
             steps = [step['maneuver']['instruction'] for leg in route['legs'] for step in leg['steps']]
         except KeyError as e:
@@ -62,19 +60,18 @@ def calculate():
     except requests.exceptions.RequestException as e:
         return jsonify({"error": f"Route data fetch failed: {e}"})
 
-    # Step 2: Calculate emissions
-    emission_rate = EMISSION_FACTORS.get(vehicle_type.lower(), 0.12)  # Default to car if unknown
+    # Calculate emissions
+    emission_rate = EMISSION_FACTORS.get(vehicle_type.lower(), 0.12)  
     total_emissions = distance_km * emission_rate
 
-    # Step 3: Get air quality data
+    #air quality data
     latitude, longitude = end.split(',')
     air_quality_url = f"{AQICN_BASE_URL}/feed/geo:{latitude};{longitude}/?token={AQICN_API_KEY}"
 
-    print(f"Air Quality URL: {air_quality_url}")  # Log the URL to check if it's correct
-
+    print(f"Air Quality URL: {air_quality_url}")  
     try:
         air_quality_response = requests.get(air_quality_url)
-        air_quality_response.raise_for_status()  # Raise an error for bad HTTP responses
+        air_quality_response.raise_for_status()  
         air_quality_data = air_quality_response.json()
 
         if air_quality_data.get('status') != 'ok':
@@ -84,16 +81,16 @@ def calculate():
     except requests.exceptions.RequestException as e:
         return jsonify({"error": f"Air quality data fetch failed: {e}"})
 
-    # Step 4: Compare emissions with air quality
+    #Compare emissions with air quality
     travel_decision = "Allowed"
     if total_emissions > air_quality_index:
         travel_decision = "Not Recommended"
         notify_company(start, end, total_emissions, air_quality_index)
 
-    # Response data
+
     result = {
         "distance_km": distance_km,
-        "duration_min": duration_sec / 60,  # Convert seconds to minutes
+        "duration_min": duration_sec / 60,  
         "steps": steps,
         "emissions_kg": total_emissions,
         "air_quality_index": air_quality_index,
@@ -121,18 +118,17 @@ def notify_company(start, end, emissions, air_quality):
 
 def send_email_notification(subject, body, recipient_email):
     try:
-        # Create the email
+       
         msg = MIMEMultipart()
         msg['From'] = EMAIL_ADDRESS
         msg['To'] = recipient_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
 
-        # Connect to the server
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
-        server.set_debuglevel(1)  # Enable debug logs
-        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)  # Use App Password
+        server.set_debuglevel(1)  
+        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)  
         server.sendmail(EMAIL_ADDRESS, recipient_email, msg.as_string())
         server.quit()
         print(f"Email sent successfully to {recipient_email}")
